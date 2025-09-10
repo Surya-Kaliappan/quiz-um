@@ -1,6 +1,6 @@
 // src/pages/HomePage.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function HomePage() {
@@ -8,7 +8,7 @@ function HomePage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleJoinQuiz = async (event) => {
+  const handleFindQuiz = async (event) => {
     event.preventDefault();
     if (!joinCode) return;
     setLoading(true);
@@ -23,28 +23,33 @@ function HomePage() {
 
     if (error || !data) {
       alert('Quiz not found. Please check the code.');
-    } else if (data.status !== 'deployed' && data.status !== 'active') {
-      alert(`This quiz is not currently active. Its status is: ${data.status}`);
+    } else if (data.status !== 'deployed') {
+      alert(`This quiz is not currently accepting new players.`);
     } else {
-      navigate(`/play/${data.id}`);
+      // Navigate to the lobby using the quiz's real ID
+      navigate(`/lobby/${data.id}`);
     }
   };
   
   return (
     <div>
-      <h2>Join an Interactive Quiz</h2>
-      <form onSubmit={handleJoinQuiz}>
+      <h2>Welcome to the Interactive Quiz!</h2>
+      <p>Enter the 6-character code to join a quiz.</p>
+      
+      <form onSubmit={handleFindQuiz}>
         <input
           type="text"
-          placeholder="Enter Join Code"
+          placeholder="e.g., AB12CD"
           value={joinCode}
           onChange={(e) => setJoinCode(e.target.value)}
           maxLength="6"
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Joining...' : 'Join'}
+          {loading ? 'Finding...' : 'Find Quiz'}
         </button>
       </form>
+      <hr />
+      <Link to="/admin-login">Go to Admin Login</Link>
     </div>
   );
 }

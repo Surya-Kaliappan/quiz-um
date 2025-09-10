@@ -26,7 +26,7 @@ Goal: An admin can control the state of a quiz (Deploy, Start, Stop), and studen
 
 Key Features:
 
-Functional "Deploy," "Start," "Stop," and "Reset" buttons on the admin dashboard.
+Functional "Deploy," "Start," "Stop," and "Reset" buttons on the admin page.
 
 A homepage where students enter a join code.
 

@@ -1,51 +1,79 @@
 // src/pages/PlayQuizPage.jsx
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function PlayQuizPage() {
   const { quizId } = useParams();
-  const [gameState, setGameState] = useState(null);
-  const [playerName, setPlayerName] = useState('');
-
-  const callGameEngine = (action, payload = {}) => {
-    supabase.functions.invoke('quiz-manager', {
-      body: { action, payload: { ...payload, sessionId: quizId } },
-    });
-  };
+  const navigate = useNavigate();
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const localPlayerId = localStorage.getItem('quiz_player_id');
+  const localPlayerName = localStorage.getItem('quiz_player_name');
 
   useEffect(() => {
-    const channel = supabase.channel(`quiz-${quizId}`);
-    channel.on('broadcast', { event: 'STATE_UPDATE' }, ({ payload }) => {
-        setGameState(payload);
-      }).subscribe();
+    const savedSessionId = localStorage.getItem('quiz_session_id');
+    if (savedSessionId !== quizId || !localPlayerName) {
+      return navigate(`/lobby/${quizId}`);
+    }
+
+    const fetchQuizState = async () => {
+      const { data, error } = await supabase.from('quizzes').select('status, title').eq('id', quizId).single();
+      if (error || !data) return navigate('/');
+      setQuiz(data);
+      setLoading(false);
+    };
+    fetchQuizState();
+
+    const channel = supabase.channel(`quiz-session-${quizId}`);
+    channel.on('broadcast', { event: 'STATUS_UPDATE' }, (payload) => {
+        // When a status update is received, update the local state
+        console.dir(payload);
+        setQuiz(currentQuiz => ({ ...currentQuiz, status: payload.payload.newStatus }));
+      })
+      .subscribe();
+
     return () => { supabase.removeChannel(channel); };
-  }, [quizId]);
+  }, [quizId, navigate, localPlayerName]);
 
-  const currentQuestion = gameState?.questions?.[gameState.currentQuestionIndex];
+  const handleQuitQuiz = async () => {
+    if (!localPlayerId) return;
 
+    const channel = supabase.channel(`live-lobby-${quizId}`);
+    channel.send({
+      type: 'broadcast',
+      event: 'player_left',
+      payload: { playerId: parseInt(localPlayerId, 10) },
+    });
+
+    await supabase.from('players').delete().eq('id', localPlayerId);
+    localStorage.removeItem('quiz_player_id');
+    localStorage.removeItem('quiz_player_name');
+    localStorage.removeItem('quiz_session_id');
+    navigate('/');
+  };
+
+  if (loading) return <div>Loading Quiz...</div>;
+  if (!quiz) return <div>Quiz not found.</div>;
+
+  if (quiz.status !== 'active') {
+    console.log(quiz);
+    return (
+      <div>
+        <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
+        <h2>Welcome, {localPlayerName}!</h2>
+        <h3>Lobby for: {quiz.title}</h3>
+        <p>Waiting for the admin to start the quiz...</p>
+      </div>
+    );
+  } 
+
+  // Quiz is active, show questions (placeholder for now)
   return (
     <div>
-      <h2>Quiz Time!</h2>
-      {!gameState || gameState.status === 'lobby' ? (
-        <div>
-          <h3>Join the Game</h3>
-          <input type="text" placeholder="Your Name" value={playerName} onChange={(e) => setPlayerName(e.target.value)} />
-          <button onClick={() => callGameEngine('PLAYER_JOIN', { playerName })}>Join</button>
-        </div>
-      ) : (
-        <div>
-          <h3>Question {gameState.currentQuestionIndex + 1}</h3>
-          {currentQuestion ? (
-            <div>
-              <h2>{currentQuestion.question_text}</h2>
-              {currentQuestion.options.map((option, i) => <button key={i}>{option}</button>)}
-            </div>
-          ) : (
-            <h2>{gameState.status === 'finished' ? 'Quiz Finished!' : 'Waiting for question...'}</h2>
-          )}
-        </div>
-      )}
+      <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
+      <h2>{quiz.title} is now Active!</h2>
+      <p>Questions will appear here.</p>
     </div>
   );
 }

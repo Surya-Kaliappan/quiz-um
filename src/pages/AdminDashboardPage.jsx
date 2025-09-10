@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../AuthContext.jsx';
 import { supabase } from '../supabaseClient.js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 function AdminDashboardPage() {
   const { user, signOut } = useAuth();
@@ -11,53 +11,33 @@ function AdminDashboardPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // This simplified structure prevents re-renders on tab focus.
-    // It runs once when the user is loaded.
     const fetchQuizzes = async (currentUser) => {
-      if (!currentUser) {
-        setLoading(false);
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('id, title')
-        .eq('admin_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching quizzes:', error);
-      } else {
-        setQuizzes(data);
-      }
+      if (!currentUser) { setLoading(false); return; }
+      const { data, error } = await supabase.from('quizzes').select('*').eq('admin_id', currentUser.id).order('created_at', { ascending: false });
+      if (error) console.error('Error fetching quizzes:', error);
+      else setQuizzes(data);
       setLoading(false);
     };
+    if (user) fetchQuizzes(user);
+  }, [user]);
 
-    // We check for the user from the auth context.
-    if (user) {
-      fetchQuizzes(user);
-    }
+  const handleDeploy = async (quizId) => {
+    const newJoinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { data, error } = await supabase.from('quizzes')
+      .update({ status: 'deployed', join_code: newJoinCode }).eq('id', quizId).select().single();
+    if (error) alert(error.message);
+    else setQuizzes(currentQuizzes => currentQuizzes.map(q => q.id === quizId ? data : q));
+  };
 
-  }, [user]); // This useEffect is now solely dependent on the user object.
-
-  const handleDeleteQuiz = async (quizId, quizTitle) => {
-    if (window.confirm(`Are you sure you want to delete the quiz "${quizTitle}"?`)) {
-      const { error } = await supabase
-        .from('quizzes')
-        .delete()
-        .eq('id', quizId);
-
-      if (error) {
-        alert(error.message);
-      } else {
-        setQuizzes(currentQuizzes => currentQuizzes.filter(q => q.id !== quizId));
-      }
+  const handleDelete = async (quizId, quizTitle) => {
+    if (window.confirm(`Are you sure you want to permanently delete "${quizTitle}"?`)) {
+      const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
+      if (error) alert(`Error deleting quiz: ${error.message}`);
+      else setQuizzes(currentQuizzes => currentQuizzes.filter(q => q.id !== quizId));
     }
   };
 
-  if (loading) {
-    return <div>Loading dashboard...</div>;
-  }
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div>
@@ -65,31 +45,24 @@ function AdminDashboardPage() {
       <p>Welcome, {user?.email}!</p>
       <button onClick={signOut}>Sign Out</button>
       <hr />
-      <button onClick={() => navigate('/admin/create')}>+ Create New Quiz Template</button>
-      <h3>Your Quiz Templates</h3>
+      <button onClick={() => navigate('/admin/create')}>+ Create New Quiz</button>
+      <h3>Your Quizzes</h3>
       <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Title</th><th>Join Code</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>
-          {quizzes.length > 0 ? (
-            quizzes.map((quiz) => (
-              <tr key={quiz.id}>
-                <td>{quiz.title}</td>
-                <td>
-                  <button onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)}>Edit</button>
-                  <button onClick={() => handleDeleteQuiz(quiz.id, quiz.title)} style={{ color: 'red' }}>Delete</button>
-                </td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan="2">You haven't created any quiz templates yet.</td>
+          {quizzes.map((quiz) => (
+            <tr key={quiz.id}>
+              <td>{quiz.title}</td>
+              <td>{quiz.status === 'deployed' || quiz.status === 'active' ? <strong>{quiz.join_code}</strong> : '---'}</td>
+              <td>{quiz.status}</td>
+              <td>
+                {quiz.status === 'draft' && <button onClick={() => handleDeploy(quiz.id)}>Deploy</button>}
+                {quiz.status !== 'draft' && <Link to={`/admin/lobby/${quiz.id}`}><button>View Lobby</button></Link>}
+                <button onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)} disabled={quiz.status !== 'draft'}>Edit</button>
+                <button onClick={() => handleDelete(quiz.id, quiz.title)} style={{ color: 'red' }} disabled={quiz.status !== 'draft'}>Delete</button>
+              </td>
             </tr>
-          )}
+          ))}
         </tbody>
       </table>
     </div>
