@@ -7,6 +7,8 @@ function PlayQuizPage() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const [quiz, setQuiz] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [gameState, setGameState] = useState({ status: 'lobby', currentQuestionIndex: -1 });
   const [loading, setLoading] = useState(true);
   const localPlayerId = localStorage.getItem('quiz_player_id');
   const localPlayerName = localStorage.getItem('quiz_player_name');
@@ -17,19 +19,26 @@ function PlayQuizPage() {
       return navigate(`/lobby/${quizId}`);
     }
 
-    const fetchQuizState = async () => {
-      const { data, error } = await supabase.from('quizzes').select('status, title').eq('id', quizId).single();
-      if (error || !data) return navigate('/');
-      setQuiz(data);
+    const fetchInitialData = async () => {
+      const { data: quizData, error: quizError } = await supabase
+        .from('quizzes').select(`*, questions(*)`).eq('id', quizId).single();
+      
+      if (quizError || !quizData) return navigate('/');
+      
+      setQuiz(quizData);
+      console.log(quizData);
+      setQuestions(quizData.questions || []);
+      setGameState({ status: quizData.status, currentQuestionIndex: -1 });
       setLoading(false);
     };
-    fetchQuizState();
+
+    fetchInitialData();
 
     const channel = supabase.channel(`quiz-session-${quizId}`);
-    channel.on('broadcast', { event: 'STATUS_UPDATE' }, (payload) => {
+    channel.on('broadcast', { event: 'STATE_UPDATE' }, (payload) => {
         // When a status update is received, update the local state
         console.dir(payload);
-        setQuiz(currentQuiz => ({ ...currentQuiz, status: payload.payload.newStatus }));
+        setGameState(payload.payload);
       })
       .subscribe();
 
@@ -47,33 +56,48 @@ function PlayQuizPage() {
     });
 
     await supabase.from('players').delete().eq('id', localPlayerId);
-    localStorage.removeItem('quiz_player_id');
-    localStorage.removeItem('quiz_player_name');
-    localStorage.removeItem('quiz_session_id');
+    localStorage.clear();
     navigate('/');
   };
 
   if (loading) return <div>Loading Quiz...</div>;
   if (!quiz) return <div>Quiz not found.</div>;
 
-  if (quiz.status !== 'active') {
-    console.log(quiz);
+  if (gameState.status === 'finished' || gameState.status === 'draft') {
+    return <div><h2>Quiz Over</h2><p>This quiz session has ended. Thank you for playing!</p></div>;
+  }
+
+  if (gameState.status !== 'active') {
     return (
       <div>
         <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
         <h2>Welcome, {localPlayerName}!</h2>
         <h3>Lobby for: {quiz.title}</h3>
-        <p>Waiting for the admin to start the quiz...</p>
+        <p>Status: <strong style={{textTransform: 'capitalize'}}>{gameState.status}</strong>. Waiting for the admin...</p>
       </div>
     );
   } 
+
+  const currentQuestion = questions[gameState.currentQuestionIndex];
 
   // Quiz is active, show questions (placeholder for now)
   return (
     <div>
       <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
-      <h2>{quiz.title} is now Active!</h2>
-      <p>Questions will appear here.</p>
+      <h2>{quiz.title}</h2>
+      {currentQuestion ? (
+        <div>
+          <h3>Question {gameState.currentQuestionIndex + 1} / {questions.length}</h3>
+          <h2>{currentQuestion.question_text}</h2>
+          <div>
+            {currentQuestion.options.map((option, index) => (
+              <button key={index}>{option}</button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <h2>Quiz Finished!</h2>
+      )}
     </div>
   );
 }
