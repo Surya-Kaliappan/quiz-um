@@ -2,71 +2,51 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 
-let sessions = {} // In-memory storage for all active quiz sessions
-
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
-  const { action, sessionId, payload } = await req.json();
-  
+  const { action, payload } = await req.json()
+  const { quizId, playerId, questionId, submittedAnswer } = payload
+
   const supabaseAdmin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
 
-  // Initialize session if it doesn't exist
-  if (!sessions[sessionId]) {
-    sessions[sessionId] = { 
-      quizTitle: '',
-      players: [], 
-      questions: [],
-      currentQuestionIndex: -1,
-      status: 'lobby',
-    };
-  }
-  
-  const session = sessions[sessionId];
+  if (action === 'SUBMIT_ANSWER') {
+    // 1. Get the correct answer from the database
+    const { data: question } = await supabaseAdmin
+      .from('questions').select('correct_answer').eq('id', questionId).single();
 
-  switch (action) {
-    case 'ADMIN_START_QUIZ':
-      const { data: quizData, error } = await supabaseAdmin
-        .from('quizzes')
-        .select(`*, questions(*)`)
-        .eq('id', sessionId)
-        .single();
+    if (!question) {
+      return new Response(JSON.stringify({ error: 'Question not found' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404
+      });
+    }
 
-      if (quizData) {
-        session.quizTitle = quizData.title;
-        session.questions = quizData.questions || [];
-        session.status = 'active';
-        session.currentQuestionIndex = 0;
-      }
-      break;
-    
-    case 'ADMIN_NEXT_QUESTION':
-      if (session.currentQuestionIndex < session.questions.length - 1) {
-        session.currentQuestionIndex++;
-      } else {
-        session.status = 'finished';
-      }
-      break;
+    const isCorrect = question.correct_answer === submittedAnswer;
 
-    case 'PLAYER_JOIN':
-      if (!session.players.some(p => p.name === payload.playerName)) {
-        session.players.push({ name: payload.playerName, score: 0 });
-      }
-      break;
+    // 2. If correct, update the player's score
+    if (isCorrect) {
+      // rpc is a special supabase function to atomically increment a value
+      await supabaseAdmin.rpc('increment_score', { player_id: playerId, increment_amount: 10 });
+    }
+
+    // 3. Broadcast an update to the admin lobby
+    const channel = supabaseAdmin.channel(`live-lobby-${quizId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'player_answered',
+      payload: { playerId: playerId },
+    });
+
+    // 4. Return the result to the player
+    return new Response(JSON.stringify({ correct: isCorrect }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
-  // Broadcast the updated state
-  const channel = supabaseAdmin.channel(`quiz-${sessionId}`);
-  await channel.send({
-    type: 'broadcast',
-    event: 'STATE_UPDATE',
-    payload: session,
-  });
-
-  return new Response(JSON.stringify(session), {
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  return new Response(JSON.stringify({ error: 'Invalid action' }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400
   });
 });

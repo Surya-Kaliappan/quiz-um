@@ -9,7 +9,7 @@ function LiveLobbyPage() {
   const [players, setPlayers] = useState([]);
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
 
   const fetchPlayers = useCallback(async () => {
     const { data } = await supabase.from('players').select('*').eq('session_id', quizId);
@@ -20,6 +20,7 @@ function LiveLobbyPage() {
     const fetchQuizAndQuestions = async () => {
       const { data } = await supabase.from('quizzes').select('title, status, join_code').eq('id', quizId).single();
       if(data) setQuiz(data);
+      if(data?.status === 'active') setCurrentQuestionIndex(0);
 
       const { data: questionsData } = await supabase.from('questions').select('*').eq('quiz_id', quizId).order('id');
       if (questionsData) setQuestions(questionsData);
@@ -35,6 +36,7 @@ function LiveLobbyPage() {
       .on('broadcast', { event: 'player_left' }, (payload) => {
         setPlayers(currentPlayers => currentPlayers.filter(p => p.id !== payload.payload.playerId));
       })
+      .on('broadcast', { event: 'player_answered' }, () => fetchPlayers())
       .subscribe();
     
     return () => { supabase.removeChannel(channel); };
@@ -65,12 +67,13 @@ function LiveLobbyPage() {
     if (error) {
       alert(error.message);
     } else {
+      setQuiz(data);
       if(newStatus === 'draft'){
         broadcastState('finished', -1); // Notify players the quiz is over
         return navigate('/admin');
       }
-      setQuiz(data);
       if (newStatus === 'active') {
+        setCurrentQuestionIndex(0);
         broadcastState(newStatus, 0); // Start with the first question
       } else {
         broadcastState(newStatus, -1);
@@ -101,7 +104,7 @@ function LiveLobbyPage() {
         {quiz?.status === 'finished' && <button onClick={() => updateQuizStatus('draft')}>Reset for New Session</button>}
       </div>
 
-      {quiz?.status === 'active' && (
+      {quiz?.status === 'active' && questions.length > 0 && (
         <h3>Showing Question {currentQuestionIndex + 1} of {questions.length}</h3>
       )}
 
@@ -109,7 +112,7 @@ function LiveLobbyPage() {
       <h3>Players ({players.length}):</h3>
       <ul>
         {players.map(player => (
-          <li key={player.id}>{player.name} - {player.is_ready ? 'Ready' : '... Joined'}</li>
+          <li key={player.id}>{player.name} - <strong>Score: {player.score}</strong></li>
         ))}
       </ul>
     </div>
