@@ -3,6 +3,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
+// Timer component for the admin's view
+function AdminTimer({ startTime, duration }) {
+  const [timeLeft, setTimeLeft] = useState(duration);
+  useEffect(() => {
+    if (!startTime || !duration) return;
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((new Date().getTime() - new Date(startTime).getTime()) / 1000);
+      const remaining = duration - elapsed;
+      setTimeLeft(remaining > 0 ? remaining : 0);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [startTime, duration]);
+
+  return <span>(Time left: {timeLeft}s)</span>;
+}
+
 function LiveLobbyPage() {
   const navigate = useNavigate();
   const { quizId } = useParams();
@@ -10,21 +26,23 @@ function LiveLobbyPage() {
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(-1);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
 
   const fetchPlayers = useCallback(async () => {
     const { data } = await supabase.from('players').select('*').eq('session_id', quizId);
     if (data) setPlayers(data);
   }, [quizId]);
 
-  useEffect(() => {
-    const fetchQuizAndQuestions = async () => {
-      const { data } = await supabase.from('quizzes').select('title, status, join_code').eq('id', quizId).single();
-      if(data) setQuiz(data);
-      if(data?.status === 'active') setCurrentQuestionIndex(0);
+  const fetchQuizAndQuestions = useCallback(async () => {
+    const { data } = await supabase.from('quizzes').select('title, status, join_code, per_question_timer, overall_timer, admin_paced').eq('id', quizId).single();
+    if(data) setQuiz(data);
+    if(data?.status === 'active') setCurrentQuestionIndex(0);
 
-      const { data: questionsData } = await supabase.from('questions').select('*').eq('quiz_id', quizId).order('id');
-      if (questionsData) setQuestions(questionsData);
-    };
+    const { data: questionsData } = await supabase.from('questions').select('*').eq('quiz_id', quizId).order('id');
+    if (questionsData) setQuestions(questionsData);
+  }, [quizId]);
+
+  useEffect(() => {
     fetchQuizAndQuestions();
     fetchPlayers();
 
@@ -42,7 +60,7 @@ function LiveLobbyPage() {
     return () => { supabase.removeChannel(channel); };
   }, [quizId, fetchPlayers]);
 
-  const broadcastState = (newStatus, questionIndex) => {
+  const broadcastState = (newStatus, questionIndex, startTime) => {
     const channel = supabase.channel(`quiz-session-${quizId}`);
     channel.send({
       type: 'broadcast',
@@ -50,7 +68,8 @@ function LiveLobbyPage() {
       payload: { 
         status: newStatus, 
         currentQuestionIndex: questionIndex,
-        totalQuestions: questions.length
+        totalQuestions: questions.length,
+        questionStartTime: startTime,
       },
     });
   };
@@ -69,14 +88,16 @@ function LiveLobbyPage() {
     } else {
       setQuiz(data);
       if(newStatus === 'draft'){
-        broadcastState('finished', -1); // Notify players the quiz is over
+        broadcastState('finished', -1, null); // Notify players the quiz is over
         return navigate('/admin');
       }
       if (newStatus === 'active') {
+        const startTime = new Date().toISOString();
         setCurrentQuestionIndex(0);
-        broadcastState(newStatus, 0); // Start with the first question
+        setQuestionStartTime(startTime);
+        broadcastState(newStatus, 0, startTime); // Start with the first question
       } else {
-        broadcastState(newStatus, -1);
+        broadcastState(newStatus, -1, null);
       }
     }
   };
@@ -84,8 +105,10 @@ function LiveLobbyPage() {
   const handleNextQuestion = () => {
     const nextIndex = currentQuestionIndex + 1;
     if (nextIndex < questions.length) {
+      const startTime = new Date().toISOString();
       setCurrentQuestionIndex(nextIndex);
-      broadcastState('active', nextIndex);
+      setQuestionStartTime(startTime);
+      broadcastState('active', nextIndex, startTime);
     } else {
       updateQuizStatus('finished'); // End of questions, finish the quiz
     }
@@ -99,13 +122,16 @@ function LiveLobbyPage() {
       
       <div style={{ margin: '20px 0' }}>
         {quiz?.status === 'deployed' && <button onClick={() => updateQuizStatus('active')}>Start Quiz</button>}
-        {quiz?.status === 'active' && <button onClick={handleNextQuestion}>Next Question</button>}
+        {quiz?.status === 'active' && quiz?.admin_paced && <button onClick={handleNextQuestion}>Next Question</button>}
         {quiz?.status === 'active' && <button onClick={() => updateQuizStatus('finished')}>Stop Session</button>}
         {quiz?.status === 'finished' && <button onClick={() => updateQuizStatus('draft')}>Reset for New Session</button>}
       </div>
 
-      {quiz?.status === 'active' && questions.length > 0 && (
-        <h3>Showing Question {currentQuestionIndex + 1} of {questions.length}</h3>
+      {quiz?.status === 'active' && questions.length > 0 && quiz?.admin_paced && (
+        <h3>
+          {quiz.admin_paced ? `Showing Question ${currentQuestionIndex + 1}` : 'Self-paced quiz in progress'}
+          {quiz.per_question_timer && <AdminTimer startTime={questionStartTime} duration={quiz.per_question_timer} />}
+        </h3>
       )}
 
       <hr />

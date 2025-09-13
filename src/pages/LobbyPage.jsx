@@ -35,6 +35,7 @@ function LobbyPage() {
       localStorage.setItem('quiz_session_id', quizId);
       localStorage.setItem('quiz_player_id', newPlayer.id);
       localStorage.setItem('quiz_player_name', newPlayer.name);
+      localStorage.setItem(`quiz_${quizId}_index`, 0);
       
       // Broadcast the join player
       const channel = supabase.channel(`live-lobby-${quizId}`);

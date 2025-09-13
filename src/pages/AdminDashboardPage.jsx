@@ -57,8 +57,8 @@ function AdminDashboardPage() {
               <td>{quiz.status}</td>
               <td>
                 {quiz.status === 'draft' && <button onClick={() => handleDeploy(quiz.id)}>Deploy</button>}
-                {quiz.status !== 'draft' && <Link to={`/admin/lobby/${quiz.id}`}><button>View Lobby</button></Link>}
-                <button onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)} disabled={quiz.status !== 'draft'}>Edit</button>
+                {quiz.status !== 'draft' && <Link to={`/admin/lobby/${quiz.id}`} target="_blank"><button>View Lobby</button></Link>}
+                <button onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)} disabled={quiz.status !== 'draft' && quiz.status !== 'deployed'}>Edit</button>
                 <button onClick={() => handleDelete(quiz.id, quiz.title)} style={{ color: 'red' }} disabled={quiz.status !== 'draft'}>Delete</button>
               </td>
             </tr>
