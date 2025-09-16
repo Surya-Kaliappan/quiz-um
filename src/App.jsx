@@ -13,18 +13,20 @@ function App() {
   const { user } = useAuth();
   
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/lobby/:quizId" element={<LobbyPage />} />
-      <Route path="/admin-login" element={<AdminLoginPage />} />
-      <Route path="/play/:quizId" element={<PlayQuizPage />} />
-      
-      {/* Protected Admin Routes */}
-      <Route path="/admin" element={user ? <AdminDashboardPage /> : <Navigate to="/admin-login" />} />
-      <Route path="/admin/create" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
-      <Route path="/admin/quiz/:quizId/edit" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
-      <Route path="/admin/lobby/:quizId" element={user ? <LiveLobbyPage /> : <Navigate to="/admin-login" />} />
-    </Routes>
+    <div className='app-container'>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/lobby/:quizId" element={<LobbyPage />} />
+        <Route path="/admin-login" element={<AdminLoginPage />} />
+        <Route path="/play/:quizId" element={<PlayQuizPage />} />
+        
+        {/* Protected Admin Routes */}
+        <Route path="/admin" element={user ? <AdminDashboardPage /> : <Navigate to="/admin-login" />} />
+        <Route path="/admin/create" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
+        <Route path="/admin/quiz/:quizId/edit" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
+        <Route path="/admin/lobby/:quizId" element={user ? <LiveLobbyPage /> : <Navigate to="/admin-login" />} />
+      </Routes>
+    </div>
   );
 }
 

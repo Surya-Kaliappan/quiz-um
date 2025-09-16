@@ -1,4 +1,3 @@
-// src/pages/PlayQuizPage.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
@@ -12,7 +11,6 @@ function shuffleArray(array) {
   return shuffled;
 }
 
-// A new Timer component
 function Timer({ startTime, duration, onTimeUp }) {
   const [timeLeft, setTimeLeft] = useState(duration);
 
@@ -38,7 +36,21 @@ function Timer({ startTime, duration, onTimeUp }) {
     return () => clearInterval(interval);
   }, [startTime, duration, onTimeUp]);
 
-  return <h3>Time Remaining: {timeLeft}s</h3>;
+  const progressWidth = (timeLeft / duration) * 100;
+
+  return (
+    <div className="mb-4">
+      <div className={`text-lg md:text-xl font-semibold ${timeLeft < 5 ? 'text-red-600 animate-pulse' : 'text-blue-800'}`}>
+        Time Remaining: {timeLeft}s
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+        <div
+          className={`h-2.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 transition-all duration-500`}
+          style={{ width: `${progressWidth}%` }}
+        ></div>
+      </div>
+    </div>
+  );
 }
 
 function PlayQuizPage() {
@@ -49,35 +61,37 @@ function PlayQuizPage() {
   const [gameState, setGameState] = useState({ status: 'lobby', currentQuestionIndex: 0, questionStartTime: null });
   const [loading, setLoading] = useState(true);
   const [submittedAnswer, setSubmittedAnswer] = useState(null);
+  const [lastSelectedOption, setLastSelectedOption] = useState(null);
   const [answerResult, setAnswerResult] = useState(null);
+  const [correctAnswer, setCorrectAnswer] = useState(null);
+  const [finalScore, setFinalScore] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isNext, setIsNext] = useState(false);
 
   const localPlayerId = localStorage.getItem('quiz_player_id');
   const localPlayerName = localStorage.getItem('quiz_player_name');
 
   const getSavedAnswers = () => JSON.parse(localStorage.getItem(`quiz_${quizId}_answers`)) || {};
-  const saveAnswer = useCallback((questionId, answer, result) => {
+  const saveAnswer = useCallback((questionId, answer, result, correctAnswer) => {
     const answers = getSavedAnswers();
-    answers[questionId] = {answer, result};
+    answers[questionId] = { answer, result, correctAnswer };
     localStorage.setItem(`quiz_${quizId}_answers`, JSON.stringify(answers));
-  }, [quizId, navigate]);
+  }, [quizId]);
 
   const setupQuiz = useCallback(async () => {
     const { data: quizData, error: quizError } = await supabase
-      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options)`).eq('id', quizId).single();
+      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options, correct_answer)`).eq('id', quizId).single();
     
     if (quizError || !quizData) return navigate('/');
 
     setQuiz(quizData);
 
-    // **THE FIX**: Check localStorage for a saved question order
     const savedOrder = localStorage.getItem(`quiz_${quizId}_order`);
     let questionOrder = quizData.questions || [];
 
     if (savedOrder) {
-      // If an order is saved, use it.
       questionOrder = JSON.parse(savedOrder);
     } else if (!quizData.admin_paced && quizData.shuffle_questions) {
-      // If no order is saved and shuffling is on, create one and save it.
       questionOrder = shuffleArray(questionOrder);
       localStorage.setItem(`quiz_${quizId}_order`, JSON.stringify(questionOrder));
     }
@@ -102,6 +116,7 @@ function PlayQuizPage() {
 
     const channel = supabase.channel(`quiz-session-${quizId}`);
     channel.on('broadcast', { event: 'STATE_UPDATE' }, (payload) => {
+        payload.payload.questionStartTime = new Date().toISOString();
         setGameState(payload.payload);
       }).subscribe();
     
@@ -109,40 +124,51 @@ function PlayQuizPage() {
   }, [quizId, navigate, localPlayerName, setupQuiz]);
 
   useEffect(() => {
-    // When the question changes, check for a previously submitted answer.
     const currentQuestion = questions[gameState.currentQuestionIndex];
     if (currentQuestion) {
       const savedAnswers = getSavedAnswers();
       const previousSubmission = savedAnswers[currentQuestion.id];
       if (previousSubmission) {
         setSubmittedAnswer(previousSubmission.answer);
+        setLastSelectedOption(previousSubmission.answer !== 'TIME_UP' ? previousSubmission.answer : null);
         setAnswerResult(previousSubmission.result);
+        setCorrectAnswer(previousSubmission.correctAnswer);
       } else {
         setSubmittedAnswer(null);
+        setLastSelectedOption(null);
         setAnswerResult(null);
+        setCorrectAnswer(null);
       }
     }
-  }, [gameState.currentQuestionIndex, questions, getSavedAnswers]);
+  }, [gameState.currentQuestionIndex, questions]);
 
   const handleAnswerSubmit = async (option) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     setSubmittedAnswer(option);
+    setLastSelectedOption(option);
     const currentQuestion = questions[gameState.currentQuestionIndex];
     const { data, error } = await supabase.functions.invoke('quiz-manager', {
       body: { action: 'SUBMIT_ANSWER', payload: { quizId, playerId: parseInt(localPlayerId, 10), questionId: currentQuestion.id, submittedAnswer: option, questionStartTime: gameState.questionStartTime } },
     });
-    if (error) alert("Error submitting answer.");
-    else {
+    if (error) {
+      alert("Error submitting answer.");
+    } else {
       const result = data.correct ? 'correct' : 'incorrect';
       setAnswerResult(result);
-      // Save the result to localStorage
-      saveAnswer(currentQuestion.id, option, result);
+      setCorrectAnswer(currentQuestion.correct_answer || data.correct_answer);
+      saveAnswer(currentQuestion.id, option, result, currentQuestion.correct_answer || data.correct_answer);
     }
+    setIsSubmitting(false);
   };
 
   const handleSelfPacedNext = useCallback(() => {
+    if (isNext) return;
+    setIsNext(true);
     const nextIndex = gameState.currentQuestionIndex + 1;
     localStorage.setItem(`quiz_${quizId}_index`, nextIndex);
-    setGameState(prev => ({...prev, currentQuestionIndex: nextIndex, questionStartTime: new Date().getTime()}));
+    setGameState(prev => ({...prev, currentQuestionIndex: nextIndex, questionStartTime: new Date().toISOString()}));
+    setIsNext(false);
   }, [gameState.currentQuestionIndex, quizId]);
 
   const handleQuitQuiz = async () => {
@@ -162,62 +188,156 @@ function PlayQuizPage() {
 
   const handleTimeUp = () => {
     setSubmittedAnswer("TIME_UP");
-    if(quiz && !quiz.admin_paced){
+    if (quiz && !quiz.admin_paced) {
       setTimeout(() => {
         handleSelfPacedNext();
       }, 1000);
     }
   };
+  
+  const isQuizFinished = !quiz?.admin_paced && gameState.currentQuestionIndex >= questions.length;
+  useEffect(() => {
+    const fetchFinalScore = async () => {
+      if ((gameState.status === 'finished' || isQuizFinished) && localPlayerId) {
+        const { data, error } = await supabase
+          .from('players')
+          .select('score')
+          .eq('id', localPlayerId)
+          .single();
+        
+        if (error) {
+          console.error("Could not fetch final score", error);
+        } else if (data) {
+          setFinalScore(data.score);
+        }
+      }
+    };
 
-  if (loading) return <div>Loading Quiz...</div>;
-  if (!quiz) return <div>Quiz not found.</div>;
+    fetchFinalScore();
+  }, [gameState.status, isQuizFinished, localPlayerId]);
+
+  if (loading) return <div className="text-center text-blue-800 text-lg animate-pulse">Loading Quiz...</div>;
+  if (!quiz) return <div className="text-center text-blue-800 text-lg">Quiz not found.</div>;
 
   if (gameState.status !== 'active') {
     return (
-      <div>
-        <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
-        <h2>Welcome, {localPlayerName}!</h2>
-        <h3>Lobby for: {quiz.title}</h3>
-        <p>Status: <strong style={{textTransform: 'capitalize'}}>{gameState.status}</strong>. Waiting for the admin...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4 md:p-6">
+        <div className="max-w-3xl w-full">
+          <button
+            onClick={handleQuitQuiz}
+            className="fixed top-4 right-4 z-10 bg-white text-black px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+          >
+            Quit
+          </button>
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
+            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 animate-underline">Welcome, {localPlayerName}!</h2>
+            <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-3">Lobby for: {quiz.title}</h3>
+            <p className="text-gray-700 text-base md:text-lg">
+              Status: <strong className="capitalize">{gameState.status}</strong>. Waiting for the admin...
+            </p>
+            {gameState.status === 'finished' && finalScore !== null && (
+              <div className="mt-4">
+                <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-2">Your Final Score</h3>
+                <p className="text-gray-900 text-base md:text-lg font-bold">{finalScore}</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   } 
 
-  const isQuizFinished = !quiz.admin_paced && gameState.currentQuestionIndex >= questions.length;
   const currentQuestion = questions[gameState.currentQuestionIndex];
   const timeLimit = quiz?.per_question_timer;
 
   return (
-    <div>
-      <button onClick={handleQuitQuiz} style={{ float: 'right' }}>Quit</button>
-      <h2>{quiz.title}</h2>
-      {currentQuestion && !isQuizFinished ? (
-        <div>
-          {timeLimit && (
-            <Timer 
-              startTime={gameState.questionStartTime} 
-              duration={timeLimit}
-              onTimeUp={handleTimeUp}
-            />
-          )}
-          <h3>Question {gameState.currentQuestionIndex + 1} / {questions.length}</h3>
-          <h2>{currentQuestion.question_text}</h2>
-          <div>
-            {currentQuestion.options.map((option, index) => (
-              <button key={index} onClick={() => handleAnswerSubmit(option)} disabled={!!submittedAnswer}
-                style={{ backgroundColor: answerResult === 'correct' && option === submittedAnswer ? 'lightgreen' : (answerResult === 'incorrect' && option === submittedAnswer ? 'salmon' : '') }}>
-                {option}
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4 md:p-6">
+      <div className="max-w-3xl w-full">
+        <button
+          onClick={handleQuitQuiz}
+          className="fixed top-4 right-4 z-10 bg-white text-black px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+        >
+          Quit
+        </button>
+        {currentQuestion && !isQuizFinished ? (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
+            <div className="flex items-center mb-4">
+              <div className="relative w-10 h-10 mr-3">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-spin-slow"></div>
+                <div className="absolute inset-0 flex items-center justify-center bg-white rounded-full text-lg font-bold text-gray-900">
+                  {gameState.currentQuestionIndex + 1}
+                </div>
+              </div>
+              <h3 className="text-lg md:text-xl font-semibold text-gray-800">
+                of {questions.length}
+              </h3>
+            </div>
+            {timeLimit && (
+              <Timer 
+                startTime={gameState.questionStartTime} 
+                duration={timeLimit}
+                onTimeUp={handleTimeUp}
+              />
+            )}
+            <h2 className="text-lg md:text-2xl font-bold text-gray-900 mb-4 animate-underline">{currentQuestion.question_text}</h2>
+            <div className="flex flex-col space-y-3">
+              {currentQuestion.options.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleAnswerSubmit(option)}
+                  disabled={isSubmitting || !!submittedAnswer}
+                  className={`p-4 rounded-lg text-sm md:text-base text-gray-800 border border-blue-400/50 transition-all duration-300 cursor-not-allowed ${
+                    (option === submittedAnswer || (submittedAnswer === 'TIME_UP' && option === lastSelectedOption))
+                      ? answerResult === null
+                        ? 'bg-blue-100 border-blue-200 animate-pulse'
+                        : answerResult === 'correct'
+                        ? 'bg-green-50 border-green-200 font-semibold'
+                        : 'bg-red-50 border-red-200 font-semibold'
+                      : 'bg-white border-blue-400/50'
+                  } ${!(isSubmitting || !!submittedAnswer) ? 'hover:bg-blue-50 hover:scale-105 cursor-pointer' : ''}`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            {answerResult && (
+              <h3 className="text-lg md:text-xl text-gray-800 font-semibold mt-4">
+                You were {answerResult}! {answerResult === 'incorrect' && correctAnswer && (
+                  <span className="text-blue-600">Correct answer: {correctAnswer}</span>
+                )}
+              </h3>
+            )}
+            {submittedAnswer === 'TIME_UP' && answerResult === null && (
+              <h3 className="text-lg md:text-xl text-red-600 font-semibold mt-4 animate-pulse">
+                Time's up! {correctAnswer && (
+                  <span className="text-blue-600">Correct answer: {correctAnswer}</span>
+                )}
+              </h3>
+            )}
+            {!quiz.admin_paced && answerResult && (
+              <button
+                onClick={handleSelfPacedNext}
+                disabled={isNext}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 mt-4"
+              >
+                Next Question
               </button>
-            ))}
+            )}
           </div>
-          {answerResult && <h3>You were {answerResult}!</h3>}
-          {!quiz.admin_paced && answerResult && (
-            <button onClick={handleSelfPacedNext} style={{marginTop: '20px'}}>Next Question</button>
-          )}
-        </div>
-      ) : (
-        <h2>{gameState.status === 'finished' || isQuizFinished ? 'Quiz has finished!' : 'Waiting for the next question...'}</h2>
-      )}
+        ) : (
+          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
+            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 animate-underline">
+              {gameState.status === 'finished' || isQuizFinished ? 'Quiz has finished!' : 'Waiting for the next question...'}
+            </h2>
+            {finalScore !== null && (
+              <div>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-2">Your Final Score</h3>
+                <p className="text-gray-900 text-base md:text-lg font-bold">{finalScore}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

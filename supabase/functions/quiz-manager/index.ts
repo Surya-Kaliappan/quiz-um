@@ -23,7 +23,7 @@ Deno.serve(async (req) => {
       const now = new Date().getTime();
       const elapsed = (now - startTime) / 1000;
       if (elapsed > (timeLimit + 34)) {
-        return new Response(JSON.stringify({ error: "Time's up!", correct: false }), {
+        return new Response(JSON.stringify({ error: "Time's up!", correct: null }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
