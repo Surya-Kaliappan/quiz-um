@@ -3,19 +3,37 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function AdminLoginPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [repassword, setRePassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const handleSignUp = async (event) => {
+    event.preventDefault();
+    if (password !== repassword) {
+      alert("Passwords do not match!");
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    const { error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+      options: {
+        data: {
+          full_name: name, // Save the name to the user's metadata
+        },
+      },
+    });
+
+    setLoading(false);
     if (error) {
-      setLoading(false);
       alert(error.message);
     } else {
-      navigate('/admin');
+      alert('Sign up successful! Please log in to continue.');
+      navigate('/admin-login'); 
     }
   };
 
@@ -24,9 +42,17 @@ function AdminLoginPage() {
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 animate-underline">
-            Admin Login
+            Admin Sign Up
           </h2>
           <form className="flex flex-col space-y-4">
+            <input
+              type="text"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="p-3 rounded-lg text-sm md:text-base text-gray-800 border border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+            />
             <input
               type="email"
               placeholder="Email"
@@ -43,8 +69,16 @@ function AdminLoginPage() {
               required
               className="p-3 rounded-lg text-sm md:text-base text-gray-800 border border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
             />
+            <input
+              type="password"
+              placeholder="Confirm-Password"
+              value={repassword}
+              onChange={(e) => setRePassword(e.target.value)}
+              required
+              className="p-3 rounded-lg text-sm md:text-base text-gray-800 border border-blue-400/50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+            />
             <button
-              onClick={handleLogin}
+              onClick={handleSignUp}
               disabled={loading}
               className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-3 rounded-lg hover:scale-105 hover:from-blue-600 hover:to-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 flex items-center justify-center"
             >
@@ -70,18 +104,18 @@ function AdminLoginPage() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Logging in
+                  Signing up...
                 </>
               ) : (
-                'Login'
+                'Sign up'
               )}
             </button>
           </form>
           <div className="text-center mt-4">
             <p className="text-gray-600">
-              Don't have an account?{' '}
-              <Link to="/admin-signup" target="_blank" className="text-blue-600 hover:underline">
-                Sign Up
+              Already have an account?{' '}
+              <Link to="/admin-login" className="text-blue-600 hover:underline">
+                Log In
               </Link>
             </p>
             <Link to="/" className="text-m text-blue-600 hover:underline mt-2 inline-block">

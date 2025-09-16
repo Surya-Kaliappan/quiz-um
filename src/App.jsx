@@ -8,6 +8,7 @@ import { useAuth } from './AuthContext.jsx';
 import LobbyPage from './pages/LobbyPage.jsx';
 import LiveLobbyPage from './pages/LiveLobbyPage.jsx';
 import PlayQuizPage from './pages/PlayQuizPage.jsx';
+import AdminSignUpPage from './pages/AdminSignUpPage.jsx';
 
 function App() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ function App() {
         <Route path="/lobby/:quizId" element={<LobbyPage />} />
         <Route path="/admin-login" element={<AdminLoginPage />} />
         <Route path="/play/:quizId" element={<PlayQuizPage />} />
+        <Route path="/admin-signup" element={<AdminSignUpPage />} />
         
         {/* Protected Admin Routes */}
         <Route path="/admin" element={user ? <AdminDashboardPage /> : <Navigate to="/admin-login" />} />

@@ -11,6 +11,8 @@ function AdminDashboardPage() {
   const [isDeploying, setIsDeploying] = useState(false);
   const navigate = useNavigate();
 
+  const adminName = user?.user_metadata?.full_name || user?.email;
+
   useEffect(() => {
     const fetchQuizzes = async (currentUser) => {
       if (!currentUser) { setLoading(false); return; }
@@ -55,7 +57,7 @@ function AdminDashboardPage() {
               Sign Out
             </button>
           </div>
-          <span className="text-blue-800 text-base md:text-lg mt-2">Welcome, {user?.email}!</span>
+          <span className="text-blue-800 text-base md:text-lg mt-2">Welcome, {adminName}!</span>
           <button
             onClick={signOut}
             className="hidden md:block bg-blue-300 text-blue-900 px-4 py-2 rounded-md hover:bg-blue-400 transition-colors absolute top-6 right-6"

@@ -90,7 +90,7 @@ function AddQuestionsPage() {
   const { user } = useAuth();
 
   const [quiz, setQuiz] = useState({ title: '', description: '', shuffle_questions: false, admin_paced: false, per_question_timer: '' });
-  const [initialQuiz, setInitialQuiz] = useState(null);
+  const [initialQuiz, setInitialQuiz] = useState({ title: '', description: '', shuffle_questions: false, admin_paced: false, per_question_timer: '' });
   const [pacingMode, setPacingMode] = useState(null); // 'admin_paced', 'shuffle_questions', or null
   const [hasChanges, setHasChanges] = useState(false);
   const [questions, setQuestions] = useState([]);
@@ -119,7 +119,6 @@ function AddQuestionsPage() {
   }, [fetchQuizData]);
 
   useEffect(() => {
-    if (!initialQuiz) return;
     const isChanged =
       quiz.title !== initialQuiz.title ||
       quiz.description !== initialQuiz.description ||
