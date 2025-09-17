@@ -2,15 +2,15 @@
   "name": "quiz-um",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://surya-kaliappan.github.io/quiz-um/",
   "type": "module",
-  "homepage": "https://surya-kaliappan.github.io/quiz-um",
   "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.2",
