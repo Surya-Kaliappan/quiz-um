@@ -8,7 +8,7 @@ import { AuthProvider } from './AuthContext.jsx';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
+  <BrowserRouter basename='/quiz-um/'>
     <AuthProvider>
       <App />
     </AuthProvider>
