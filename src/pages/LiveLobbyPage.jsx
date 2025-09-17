@@ -137,7 +137,7 @@ function LiveLobbyPage() {
         <div className="text-blue-800 text-base md:text-lg mb-4 md:mb-6">Game Code: <strong>{quiz?.join_code || 'N/A'}</strong></div>
         
         <div className="flex flex-wrap gap-2 mb-4 md:mb-6">
-          {quiz?.status === 'deployed' && (
+          {quiz?.status === 'deployed' && players.length>0 && (
             <button
               onClick={() => updateQuizStatus('active')}
               disabled={isStarting}
@@ -203,7 +203,7 @@ function LiveLobbyPage() {
                       >
                         {option}
                         {option === questions[currentQuestionIndex].correct_answer && (
-                          <span className="ml-2 text-green-600">✅</span>
+                          <span className="ml-2 text-green-600"></span>
                         )}
                       </li>
                     ))}

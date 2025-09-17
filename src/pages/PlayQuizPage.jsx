@@ -174,14 +174,16 @@ function PlayQuizPage() {
   const handleQuitQuiz = async () => {
     if (!localPlayerId) return;
 
-    const channel = supabase.channel(`live-lobby-${quizId}`);
-    channel.send({
-      type: 'broadcast',
-      event: 'player_left',
-      payload: { playerId: parseInt(localPlayerId, 10) },
-    });
+    if(gameState.status === 'active'){
+      const channel = supabase.channel(`live-lobby-${quizId}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'player_left',
+        payload: { playerId: parseInt(localPlayerId, 10) },
+      });
 
-    await supabase.from('players').delete().eq('id', localPlayerId);
+      await supabase.from('players').delete().eq('id', localPlayerId);
+    }
     localStorage.clear();
     navigate('/');
   };
@@ -225,20 +227,19 @@ function PlayQuizPage() {
         <div className="max-w-3xl w-full">
           <button
             onClick={handleQuitQuiz}
-            className="fixed top-4 right-4 z-10 bg-white text-black px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+            className="fixed top-4 right-4 z-10 bg-white text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:red-300 transition-all duration-300"
           >
             Quit
           </button>
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
-            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 animate-underline">Welcome, {localPlayerName}!</h2>
+            <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 animate-underline">Greetings, {localPlayerName}!</h2>
             <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-3">Lobby for: {quiz.title}</h3>
-            <p className="text-gray-700 text-base md:text-lg">
-              Status: <strong className="capitalize">{gameState.status}</strong>. Waiting for the admin...
-            </p>
+            {gameState.status === 'deployed' && <p>Waiting for the admin to Start</p>}
             {gameState.status === 'finished' && finalScore !== null && (
               <div className="mt-4">
-                <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-2">Your Final Score</h3>
-                <p className="text-gray-900 text-base md:text-lg font-bold">{finalScore}</p>
+                <p>Quiz has been Finished!!</p>
+                <h3 className="text-center text-lg md:text-xl font-semibold text-gray-800 mb-1 mt-5">Your Final Score</h3>
+                <p className="text-center text-gray-900 text-xl md:text-lg font-bold">{finalScore} out of {questions.length}</p>
               </div>
             )}
           </div>
@@ -255,10 +256,11 @@ function PlayQuizPage() {
       <div className="max-w-3xl w-full">
         <button
           onClick={handleQuitQuiz}
-          className="fixed top-4 right-4 z-10 bg-white text-black px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 transition-all duration-300"
+          className="fixed top-4 right-4 z-10 bg-white text-black font-bold px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base rounded-lg hover:scale-105 hover:red-300 transition-all duration-300"
         >
           Quit
         </button>
+        <h3 className='fixed top-4 left-5 z-10 text-white font-bold text-2xl'>{localPlayerName}</h3>
         {currentQuestion && !isQuizFinished ? (
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
             <div className="flex items-center mb-4">
@@ -291,8 +293,8 @@ function PlayQuizPage() {
                       ? answerResult === null
                         ? 'bg-blue-100 border-blue-200 animate-pulse'
                         : answerResult === 'correct'
-                        ? 'bg-green-50 border-green-200 font-semibold'
-                        : 'bg-red-50 border-red-200 font-semibold'
+                        ? 'bg-green-100 border-green-200 font-semibold'
+                        : 'bg-red-100 border-red-200 font-semibold'
                       : 'bg-white border-blue-400/50'
                   } ${!(isSubmitting || !!submittedAnswer) ? 'hover:bg-blue-50 hover:scale-105 cursor-pointer' : ''}`}
                 >
@@ -318,7 +320,7 @@ function PlayQuizPage() {
               <button
                 onClick={handleSelfPacedNext}
                 disabled={isNext}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-5 py-2.5 rounded-lg hover:scale-105 hover:from-blue-700 hover:to-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 mt-4"
+                className="bg-green-400 text-white px-5 py-2.5 rounded-lg hover:scale-105 hover:green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 mt-4"
               >
                 Next Question
               </button>

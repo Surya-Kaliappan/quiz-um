@@ -24,11 +24,14 @@ function AdminDashboardPage() {
     if (user) fetchQuizzes(user);
   }, [user]);
 
-  const handleDeploy = async (quizId) => {
+  const handleDeploy = async (quizId, state) => {
     setIsDeploying(true);
-    const newJoinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    let newJoinCode = null;
+    if(state === 'deployed'){
+        newJoinCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
     const { data, error } = await supabase.from('quizzes')
-      .update({ status: 'deployed', join_code: newJoinCode }).eq('id', quizId).select().single();
+      .update({ status: state, join_code: newJoinCode }).eq('id', quizId).select().single();
     if (error) alert(error.message);
     else setQuizzes(currentQuizzes => currentQuizzes.map(q => q.id === quizId ? data : q));
     setIsDeploying(false);
@@ -100,11 +103,11 @@ function AdminDashboardPage() {
                   <td className="p-4 flex justify-center space-x-2">
                     {quiz.status === 'draft' && (
                       <button
-                        onClick={() => handleDeploy(quiz.id)}
+                        onClick={() => handleDeploy(quiz.id, 'deployed')}
                         disabled={isDeploying}
                         className="bg-green-600 text-white px-3 py-1 rounded-md hover:bg-green-700 transition-colors"
                       >
-                        {isDeploying ? 'Deploying...' : 'Deploy'}
+                        {isDeploying ? 'Activating...' : 'Activate'}
                       </button>
                     )}
                     {quiz.status !== 'draft' && (
@@ -114,75 +117,32 @@ function AdminDashboardPage() {
                         </button>
                       </Link>
                     )}
-                    <button
+                    { (quiz.status === 'draft') && <button
                       onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)}
-                      disabled={quiz.status !== 'draft' && quiz.status !== 'deployed'}
+                      disabled={quiz.status !== 'draft'}
                       className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
                     >
                       Edit
-                    </button>
-                    <button
+                    </button>}
+                    { quiz.status === 'draft' && <button
                       onClick={() => handleDelete(quiz.id, quiz.title)}
                       disabled={quiz.status !== 'draft'}
                       className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-600 disabled:bg-red-300 transition-colors"
                     >
                       Delete
-                    </button>
+                    </button>}
+                    { quiz.status === 'deployed' && <button 
+                      onClick={() => handleDeploy(quiz.id, 'draft')}
+                      disabled={isDeploying}
+                      className="bg-red-500 text-white px-3 py-1 rounded-md hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                    >
+                      {isDeploying ? 'Deactivating' : 'Deactivate'}
+                    </button>}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="md:hidden space-y-4">
-          {quizzes.map((quiz) => (
-            <div key={quiz.id} className="bg-gray-100 rounded-xl shadow-lg p-5 border border-blue-100">
-              <div className="text-center text-blue-900 text-lg font-semibold mb-3">{quiz.title}</div>
-              <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-800">
-                <div className="font-medium text-right">Join Code:</div>
-                <div className="text-left">
-                  {quiz.status === 'deployed' || quiz.status === 'active' ? (
-                    <strong>{quiz.join_code}</strong>
-                  ) : (
-                    '---'
-                  )}
-                </div>
-                <div className="font-medium text-right">Status:</div>
-                <div className="text-left">{quiz.status}</div>
-              </div>
-              <div className="flex flex-wrap justify-center gap-2 mt-4">
-                {quiz.status === 'draft' && (
-                  <button
-                    onClick={() => handleDeploy(quiz.id)}
-                    className="bg-green-600 text-white px-4 py-1.5 rounded-md hover:bg-green-700 transition-colors text-sm"
-                  >
-                    Deploy
-                  </button>
-                )}
-                {quiz.status !== 'draft' && (
-                  <Link to={`/admin/lobby/${quiz.id}`} target="_blank">
-                    <button className="bg-blue-500 text-white px-4 py-1.5 rounded-md hover:bg-blue-600 transition-colors text-sm">
-                      View Lobby
-                    </button>
-                  </Link>
-                )}
-                <button
-                  onClick={() => navigate(`/admin/quiz/${quiz.id}/edit`)}
-                  disabled={quiz.status !== 'draft' && quiz.status !== 'deployed'}
-                  className="bg-blue-500 text-white px-4 py-1.5 rounded-md hover:bg-blue-600 disabled:bg-blue-300 transition-colors text-sm"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(quiz.id, quiz.title)}
-                  disabled={quiz.status !== 'draft'}
-                  className="bg-red-500 text-white px-4 py-1.5 rounded-md hover:bg-red-600 disabled:bg-red-300 transition-colors text-sm"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </div>
