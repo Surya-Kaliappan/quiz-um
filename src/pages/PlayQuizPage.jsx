@@ -80,11 +80,12 @@ function PlayQuizPage() {
 
   const setupQuiz = useCallback(async () => {
     const { data: quizData, error: quizError } = await supabase
-      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options, correct_answer)`).eq('id', quizId).single();
+      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options, correct_answer)`).eq('id', quizId).order('id', { foreignTable: 'questions' }).single();
     
     if (quizError || !quizData) return navigate('/');
 
     setQuiz(quizData);
+    console.dir(quizData);
 
     const savedOrder = localStorage.getItem(`quiz_${quizId}_order`);
     let questionOrder = quizData.questions || [];
@@ -98,7 +99,7 @@ function PlayQuizPage() {
     setQuestions(questionOrder);
     
     const savedIndex = localStorage.getItem(`quiz_${quizId}_index`);
-    const initialIndex = savedIndex ? parseInt(savedIndex, 10) : 0;
+    const initialIndex = savedIndex ? parseInt(savedIndex, 10) : (quizData.admin_paced ? -1 : 0);
     
     setGameState({ 
       status: quizData.status, 
@@ -174,7 +175,7 @@ function PlayQuizPage() {
   const handleQuitQuiz = async () => {
     if (!localPlayerId) return;
 
-    if(gameState.status === 'active'){
+    if(gameState.status !== 'finished'){
       const channel = supabase.channel(`live-lobby-${quizId}`);
       channel.send({
         type: 'broadcast',
@@ -234,7 +235,8 @@ function PlayQuizPage() {
           <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-200 animate-fade-in">
             <h2 className="text-2xl md:text-4xl font-bold text-gray-900 mb-3 animate-underline">Greetings, {localPlayerName}!</h2>
             <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-3">Lobby for: {quiz.title}</h3>
-            {gameState.status === 'deployed' && <p>Waiting for the admin to Start</p>}
+            {gameState.status === 'deployed' && <p>Waiting for the admin to Start Quiz</p>}
+            {gameState.status === 'cancelled' && <p>Quiz has been Cancelled by Admin.</p>}
             {gameState.status === 'finished' && finalScore !== null && (
               <div className="mt-4">
                 <p>Quiz has been Finished!!</p>
@@ -320,7 +322,7 @@ function PlayQuizPage() {
               <button
                 onClick={handleSelfPacedNext}
                 disabled={isNext}
-                className="bg-green-400 text-white px-5 py-2.5 rounded-lg hover:scale-105 hover:green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 mt-4"
+                className="bg-blue-400 text-white px-5 py-2.5 rounded-lg hover:scale-105 hover:green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 mt-4"
               >
                 Next Question
               </button>
@@ -333,8 +335,8 @@ function PlayQuizPage() {
             </h2>
             {finalScore !== null && (
               <div>
-                <h3 className="text-lg md:text-xl font-semibold text-gray-800 mb-2">Your Final Score</h3>
-                <p className="text-gray-900 text-base md:text-lg font-bold">{finalScore}</p>
+                <h3 className="text-center text-lg md:text-xl font-semibold text-gray-800 mb-2">Your Final Score</h3>
+                <p className="text-center text-xl text-gray-900 text-base md:text-lg font-bold">{finalScore} out of {questions.length}</p>
               </div>
             )}
           </div>

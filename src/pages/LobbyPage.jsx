@@ -29,7 +29,7 @@ function LobbyPage() {
       .from('players').insert({ session_id: quizId, name: studentName, is_ready: true }).select().single();
 
     if (error) {
-      alert("Error joining quiz.");
+      alert("Error joining quiz because "+error.message);
       setLoading(false);
     } else {
       localStorage.setItem('quiz_session_id', quizId);
