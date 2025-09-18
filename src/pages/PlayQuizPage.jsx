@@ -63,7 +63,6 @@ function PlayQuizPage() {
   const [submittedAnswer, setSubmittedAnswer] = useState(null);
   const [lastSelectedOption, setLastSelectedOption] = useState(null);
   const [answerResult, setAnswerResult] = useState(null);
-  const [correctAnswer, setCorrectAnswer] = useState(null);
   const [finalScore, setFinalScore] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isNext, setIsNext] = useState(false);
@@ -72,20 +71,19 @@ function PlayQuizPage() {
   const localPlayerName = localStorage.getItem('quiz_player_name');
 
   const getSavedAnswers = () => JSON.parse(localStorage.getItem(`quiz_${quizId}_answers`)) || {};
-  const saveAnswer = useCallback((questionId, answer, result, correctAnswer) => {
+  const saveAnswer = useCallback((questionId, answer, result) => {
     const answers = getSavedAnswers();
-    answers[questionId] = { answer, result, correctAnswer };
+    answers[questionId] = { answer, result };
     localStorage.setItem(`quiz_${quizId}_answers`, JSON.stringify(answers));
   }, [quizId]);
 
   const setupQuiz = useCallback(async () => {
     const { data: quizData, error: quizError } = await supabase
-      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options, correct_answer)`).eq('id', quizId).order('id', { foreignTable: 'questions' }).single();
+      .from('quizzes').select(`*, questions(id, quiz_id, question_text, options)`).eq('id', quizId).order('id', { foreignTable: 'questions' }).single();
     
     if (quizError || !quizData) return navigate('/');
 
     setQuiz(quizData);
-    console.dir(quizData);
 
     const savedOrder = localStorage.getItem(`quiz_${quizId}_order`);
     let questionOrder = quizData.questions || [];
@@ -133,12 +131,10 @@ function PlayQuizPage() {
         setSubmittedAnswer(previousSubmission.answer);
         setLastSelectedOption(previousSubmission.answer !== 'TIME_UP' ? previousSubmission.answer : null);
         setAnswerResult(previousSubmission.result);
-        setCorrectAnswer(previousSubmission.correctAnswer);
       } else {
         setSubmittedAnswer(null);
         setLastSelectedOption(null);
         setAnswerResult(null);
-        setCorrectAnswer(null);
       }
     }
   }, [gameState.currentQuestionIndex, questions]);
@@ -157,7 +153,6 @@ function PlayQuizPage() {
     } else {
       const result = data.correct ? 'correct' : 'incorrect';
       setAnswerResult(result);
-      setCorrectAnswer(currentQuestion.correct_answer || data.correct_answer);
       saveAnswer(currentQuestion.id, option, result, currentQuestion.correct_answer || data.correct_answer);
     }
     setIsSubmitting(false);
@@ -306,16 +301,12 @@ function PlayQuizPage() {
             </div>
             {answerResult && (
               <h3 className="text-lg md:text-xl text-gray-800 font-semibold mt-4">
-                You were {answerResult}! {answerResult === 'incorrect' && correctAnswer && (
-                  <span className="text-blue-600">Correct answer: {correctAnswer}</span>
-                )}
+                You were {answerResult}! {answerResult === 'incorrect'}
               </h3>
             )}
             {submittedAnswer === 'TIME_UP' && answerResult === null && (
               <h3 className="text-lg md:text-xl text-red-600 font-semibold mt-4 animate-pulse">
-                Time's up! {correctAnswer && (
-                  <span className="text-blue-600">Correct answer: {correctAnswer}</span>
-                )}
+                Time's up!
               </h3>
             )}
             {!quiz.admin_paced && answerResult && (
