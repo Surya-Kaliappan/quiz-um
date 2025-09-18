@@ -185,7 +185,7 @@ function PlayQuizPage() {
   };
 
   const handleTimeUp = () => {
-    setSubmittedAnswer("TIME_UP");
+    if (!submittedAnswer) setSubmittedAnswer("TIME_UP");
     if (quiz && !quiz.admin_paced) {
       setTimeout(() => {
         handleSelfPacedNext();
