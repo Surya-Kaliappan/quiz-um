@@ -1,98 +1,149 @@
-## Phase 1: Admin Foundation & Quiz Creation 🏗️
-This phase is about giving the admin all the tools they need to create and manage quiz content.
+# 🚀 Interactive Quiz Platform
 
-Goal: An admin can log in, manage quiz templates, add/edit questions, and configure all quiz settings.
+**Interactive Quiz Platform** – a dynamic and real-time application where hosts (admins) can create and manage engaging quizzes, and players can join live sessions to compete!
 
-Key Features:
+This platform supports both **Admin-Paced** and **Self-Paced** quizzes, complete with per-question timers, secure server-side validation, and real-time score updates.
 
-Full admin authentication (Login, Logout, Protected Routes).
+---
 
-A dashboard to view, create, and delete quiz templates.
+## 🌐 Live Demo
 
-A comprehensive quiz editor page.
+Experience the platform live here: [**https://surya-kaliappan.github.io/quiz-um/**](https://surya-kaliappan.github.io/quiz-um/)
 
-Functionality to add, edit, and delete questions for a quiz.
+---
 
-A form to configure all settings (timers, shuffling, etc.) with our logical rules.
+## ✨ Features at a Glance
 
-Hardest Part & Our Demo: The most complex piece is the quiz editor's state management.
+* **Admin Dashboard**: Create, activate, and manage all your quizzes from one central place.
+* **Flexible Quiz Settings**:
+    * **Admin-Paced**: Host controls when to move to the next question.
+    * **Self-Paced**: Players answer at their own speed (optional question shuffling).
+    * **Timers**: Set per-question and overall quiz time limits.
+* **Question Management**: Easily add, edit, or delete questions with multiple-choice options and designated correct answers.
+* **Player Lobby**: Real-time display of connected players before a quiz begins.
+* **Live Gameplay**: Interactive question-and-answer interface for players.
+* **Real-time Score Tracking**: See player scores update instantly.
+* **Robust & Secure**: Server-side logic ensures fair play and accurate scoring.
+* **Responsive & Modern UI**: A clean, consistent design that looks great on any device.
 
-Demo: We will first build the AddQuestionsPage.jsx to correctly save a quiz's title and its settings to the database, ensuring all the conflicting options (like disabling shuffling when admin-paced is on) work perfectly in the UI.
+---
 
-## Phase 2: Live Session Management & Student Join 🚪
-This phase focuses on making a quiz "live" and allowing students to enter the waiting room.
+## 👨‍💻 For Quiz Hosts (Admins)
 
-Goal: An admin can control the state of a quiz (Deploy, Start, Stop), and students can join a deployed quiz.
+### 1. **Signing Up & Logging In**
 
-Key Features:
+* **Sign Up**: If you're a new host, navigate to the `Admin Sign Up` page. Provide your Name, Email, and Password to create your account.
+* **Login**: Visit the `Admin Login` page. Enter your registered email and password to access your dashboard.
 
-Functional "Deploy," "Start," "Stop," and "Reset" buttons on the admin page.
+### 2. **Creating a New Quiz**
 
-A homepage where students enter a join code.
+1.  From your Admin Dashboard, click the **"+ Create New Quiz"** button.
+2.  **Quiz Title**: Give your quiz a descriptive name (e.g., "General Knowledge").
+3.  **Quiz Type**:
+    * **Admin Paced**: You (the host) will manually advance to the next question.
+    * **Self Paced**: Players advance questions themselves once they answer.
+4.  **Shuffle Questions**: (Only for Self-Paced) Choose if questions should appear in a random order for players.
+5.  **Per Question Timer**: (Optional) Set a time limit (in seconds) for each question.
+6.  Click **"Save Quiz"**.
 
-A pre-quiz instruction screen (the lobby) where students enter their name and wait.
+### 3. **Adding Questions**
 
-A live view for the admin to see which players have joined the lobby.
+1.  After saving a quiz, you'll be redirected to the "Add Questions" page for that quiz.
+2.  Enter the **Question Text**.
+3.  Add up to **4 Options** for the answer.
+4.  Crucially, select the **Correct Answer** from your provided options.
+5.  Click **"Add Question"**.
+6.  You can **"Edit"** or **"Delete"** existing questions.
+7.  When done, click **"Back to Dashboard"**.
 
-Hardest Part & Our Demo: The real-time lobby sync.
+### 4. **Deploying and Hosting a Quiz**
 
-Demo: We'll create a simple view for the admin that shows a list of players. We will test to ensure that when a new student joins, their name instantly appears on the admin's screen using Supabase's Realtime Broadcast.
+1.  On your Admin Dashboard, find the quiz you want to run (its status will be "Draft").
+2.  Click the **"Activate"** button next to the quiz.
+3.  The quiz status will change to "Deployed," and a unique **6-character Join Code** will be generated.
+4.  **Share this Join Code** with your players! They will use it to enter your quiz session.
+5.  Click the **"Lobby"** button to open the live admin lobby in a new tab.
 
-## Phase 3: The Live Gameplay Loop 🎮
-This is the core, interactive part of the quiz for the student.
+### 5. **Managing a Live Quiz Session**
 
-Goal: An admin can push questions to players, and players can see them in real-time.
+* **In the Live Lobby (Admin View)**:
+    * You will see players join in real-time.
+    * **Start Quiz**: Click this when all players are ready. The first question will appear for all players.
+    * **Next Question**: (For Admin-Paced quizzes) Click this to advance to the next question for all players.
+    * **Player List**: See connected players and their current scores. Players who have left will be indicated.
+    * **End Quiz**: After the last question, or when you decide, the quiz will conclude.
 
-Key Features:
+---
 
-When the admin starts the quiz, students are moved from the lobby to the first question.
+## 🎮 For Players
 
-The PlayQuizPage will display the current question and options.
+### 1. **Joining a Quiz**
 
-An admin-controlled "Next Question" button that updates the screen for all players simultaneously.
+1.  Go to the platform's Home Page (via the Live Demo link above).
+2.  Enter the **6-character Join Code** provided by your host.
+3.  Click **"Find Quiz"**.
+4.  You'll be directed to the Lobby. Enter your **Player Name**, checked the **"Terms and Condition"** and click **"Join Quiz"**.
+5.  Wait for the host to start the quiz!
 
-Logic for timers (both per-question and overall) that correctly locks answers when time is up.
+### 2. **Playing the Quiz**
 
-Hardest Part & Our Demo: Synchronizing the game state.
+* **Questions**: Once the quiz starts, questions will appear one by one.
+* **Answering**: Click on your chosen answer option. Once you click, your answer is submitted, and the options will freeze to prevent multiple submissions.
+* **Timers**: Keep an eye on the per-question timer (if active).
+* **Scores**: Your score will update as you answer questions correctly.
+* **Persistence**: If you refresh your browser or accidentally close the tab, you can rejoin the quiz, and your progress (current question, submitted answers) will be restored.
 
-Demo: We will use a Supabase Edge Function as our central "game engine." The demo will have the admin click a "Next" button, which calls the function. The function will then broadcast the new question index to all connected players, proving our core real-time gameplay loop works.
+### 3. **Quitting the Quiz**
 
-## Phase 4: Scoring & Results 🏆
-This phase completes the quiz by handling answers and showing the final results.
+* At any point, you can click the **"Quit Quiz"** button. Your name will be removed in the admin's lobby before quiz ends.
 
-Goal: Student answers are submitted and scored securely, with a final leaderboard.
+---
 
-Key Features:
+## 🛠️ Tech Stack & Tools
 
-When a student clicks an answer, it's sent to an Edge Function.
+* **Frontend**:
+    * **React**: A declarative, component-based JavaScript library for building user interfaces.
+    * **Vite**: A fast and lightweight build tool for modern web projects.
+    * **React Router**: For declarative routing within the single-page application.
+* **Backend & Database**:
+    * **Supabase**: An open-source Firebase alternative providing:
+        * **PostgreSQL Database**: For storing quiz data, questions, players, and scores.
+        * **Auth**: User authentication for administrators.
+        * **Realtime**: For live updates in lobbies and during gameplay.
+        * **Edge Functions (Deno)**: Serverless functions for secure, server-side logic (e.g., answer validation, score incrementing, quiz state management).
+* **Styling**:
+    * **TailwindCSS**: Tailored for a modern "Glassmorphism" UI design.
+* **Deployment**:
+    * **GitHub Pages**: For static website hosting.
 
-The Edge Function validates the answer against the correct one in the database.
+---
 
-The student receives immediate feedback ("Correct" or "Incorrect").
-
-Scores are updated in the database.
-
-When the quiz ends, a final results page shows a ranked leaderboard.
-
-Hardest Part & Our Demo: Secure, server-side answer validation.
-
-Demo: We will create an Edge Function that receives a questionId and a submittedAnswer. The function will look up the correct answer in the database, compare them, and return true or false. This proves our scoring is secure and cheat-proof.
-
-## Phase 5: UI/UX Polish ✨
-Once everything is functional, we will make it look great.
-
-Goal: Refine the user interface to be attractive, smooth, and professional.
-
-Key Features:
-
-Implement the glassmorphism design across the application.
-
-Add the connection status indicator.
-
-Ensure the entire application is responsive and works well on mobile devices.
-
-Add smooth transitions and loading animations.
-
-Hardest Part & Our Demo: Implementing the glassmorphism UI with CSS.
-
-Demo: We'll create a single, reusable React component (like a "Card") that perfectly captures the glassmorphism style, and then apply it throughout the app.
+## 📂 Project Structure
+```
+.
+├── public/                     
+│   └── logo.png               
+├── src/
+│   ├── pages/                  # All main application pages
+│   │   ├── AdminDashboardPage.jsx
+│   │   ├── AdminLoginPage.jsx
+│   │   ├── AdminSignUpPage.jsx
+│   │   ├── AddQuestionsPage.jsx
+│   │   ├── HomePage.jsx
+│   │   ├── LiveLobbyPage.jsx
+│   │   ├── LobbyPage.jsx
+│   │   └── PlayQuizPage.jsx
+│   ├── AuthContext.jsx         # React Context for user authentication
+│   ├── App.jsx                 # Main application component and router setup
+|   ├── index.css               # Connect Tailwindcss
+│   ├── main.jsx                # Entry point for the React app
+│   └── supabaseClient.js       # Supabase client initialization
+├── supabase/                   # Supabase Edge Functions
+│   ├── functions/
+│   │   ├── _shared/            # Shared utility functions for Edge
+│   │   │   └── cors.ts
+│   │   └── quiz-manager/       # The core backend logic for quizzes
+│   │       └── index.ts
+│   └── migrations/             # Database schema migrations
+└── .env.example                # environment variables
+```

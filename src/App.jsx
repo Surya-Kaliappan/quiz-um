@@ -18,11 +18,11 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/lobby/:quizId" element={<LobbyPage />} />
-        <Route path="/admin-login" element={<AdminLoginPage />} />
         <Route path="/play/:quizId" element={<PlayQuizPage />} />
         <Route path="/admin-signup" element={<AdminSignUpPage />} />
         
         {/* Protected Admin Routes */}
+        <Route path="/admin-login" element={user ? <Navigate to='/admin' /> : <AdminLoginPage />} />
         <Route path="/admin" element={user ? <AdminDashboardPage /> : <Navigate to="/admin-login" />} />
         <Route path="/admin/create" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
         <Route path="/admin/quiz/:quizId/edit" element={user ? <AddQuestionsPage /> : <Navigate to="/admin-login" />} />
